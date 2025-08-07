@@ -7,12 +7,9 @@ import numpy
 import time, pdb, argparse, subprocess, os, math, glob
 import cv2
 import python_speech_features
-
 from scipy import signal
 from scipy.io import wavfile
-#from SyncNetModel import *
 from shutil import rmtree
-
 from .SyncNetModel import *
 
 
@@ -57,7 +54,7 @@ class SyncNetInstance(torch.nn.Module):
         command = ("ffmpeg -y -i %s -threads 1 -f image2 %s" % (videofile,os.path.join(opt.tmp_dir,opt.reference,'%06d.jpg'))) 
         output = subprocess.call(command, shell=True, stdout=None)
 
-        command = ("ffmpeg -y -i %s -async 1 -ac 1 -vn -acodec pcm_s16le -ar 16000 %s" % (videofile,os.path.join(opt.tmp_dir,opt.reference,'audio.wav'))) 
+        command = ("ffmpeg -y -i %s -async 1 -ac 1 -vn -acodec pcm_s16le -ar 16000 %s" % (videofile,os.path.join(opt.tmp_dir,opt.reference,'audio_processing.wav')))
         output = subprocess.call(command, shell=True, stdout=None)
         
         # ========== ==========
@@ -79,10 +76,10 @@ class SyncNetInstance(torch.nn.Module):
         imtv = torch.autograd.Variable(torch.from_numpy(im.astype(float)).float())
 
         # ========== ==========
-        # Load audio
+        # Load audio_processing
         # ========== ==========
 
-        sample_rate, audio = wavfile.read(os.path.join(opt.tmp_dir,opt.reference,'audio.wav'))
+        sample_rate, audio = wavfile.read(os.path.join(opt.tmp_dir,opt.reference,'audio_processing.wav'))
         mfcc = zip(*python_speech_features.mfcc(audio,sample_rate))
         mfcc = numpy.stack([numpy.array(i) for i in mfcc])
 
@@ -90,7 +87,7 @@ class SyncNetInstance(torch.nn.Module):
         cct = torch.autograd.Variable(torch.from_numpy(cc.astype(float)).float())
 
         # ========== ==========
-        # Check audio and video input length
+        # Check audio_processing and video input length
         # ========== ==========
 
         if (float(len(audio))/16000) != (float(len(images))/25) :
@@ -99,7 +96,7 @@ class SyncNetInstance(torch.nn.Module):
         min_length = min(len(images),math.floor(len(audio)/640))
         
         # ========== ==========
-        # Generate video and audio feats
+        # Generate video and audio_processing feats
         # ========== ==========
 
         lastframe = min_length-5
