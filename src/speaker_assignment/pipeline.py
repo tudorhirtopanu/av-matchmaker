@@ -4,10 +4,11 @@ from .compute_cosine_similarity import compute_cosine_similarity
 from .utils import load_and_group_av_cosine
 from .compute_probability import compute_probability
 from .plot_probabilities import plot_probs
+from .assign import assign
 
 
 def run_speaker_assignment(work_dir, audio_dir, temp_dir, crop_dir, graphs_dir, weights_path, batch_size=20,
-                           temperature=0.5, smooth_size=10, ema_alpha=0.1, frame_step_ms=40):
+                           temperature=0.5, smooth_size=10, ema_alpha=0., frame_step_ms=40):
 
     """
     Runs the full speaker assignment pipeline, from audio-video similarity computation to probability plotting.
@@ -69,6 +70,9 @@ def run_speaker_assignment(work_dir, audio_dir, temp_dir, crop_dir, graphs_dir, 
 
     # Plot Probabilities
     plot_probs(os.path.join(work_dir, 'probabilities.pkl'), graphs_dir)
+
+    # Assign Speakers
+    assign(os.path.join(work_dir, 'probabilities.pkl'), os.path.join(work_dir, 'assignments.pkl'))
 
 
 
