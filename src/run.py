@@ -90,7 +90,7 @@ def main():
     # -------------------
     # Speaker Assignment
     # -------------------
-    run_speaker_assignment(work_dir, opt.audio_dir, tmp_dir, crop_dir, graphs_dir, opt.weights_path)
+    run_speaker_assignment(work_dir, opt.audio_dir, tmp_dir, crop_dir, graphs_dir, opt.weights_path, avi_dir)
 
 
 if __name__ == "__main__":
