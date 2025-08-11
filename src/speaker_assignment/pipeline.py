@@ -5,19 +5,14 @@ from .utils import load_and_group_av_cosine
 from .compute_probability import compute_probability
 from .plot_probabilities import plot_probs
 from .assign import assign
+from .visualise import annotate_video
 
 
-def run_speaker_assignment(work_dir, audio_dir, temp_dir, crop_dir, graphs_dir, weights_path, batch_size=20,
+def run_speaker_assignment(work_dir, audio_dir, temp_dir, crop_dir, graphs_dir, weights_path, avi_dir, batch_size=20,
                            temperature=0.5, smooth_size=10, ema_alpha=0., frame_step_ms=40):
 
     """
-    Runs the full speaker assignment pipeline, from audio-video similarity computation to probability plotting.
-
-    Steps:
-      1. Computes cosine similarity between audio segments and face tracks using SyncNet.
-      2. Groups cosine similarity results by audio file and track.
-      3. Computes softmax-based speaker probabilities for each audio segment across tracks.
-      4. Applies smoothing and visualizes speaker probability timelines.
+    Runs the full speaker assignment pipeline.
 
     :param work_dir: str
         Directory for reading and saving intermediate and final data (e.g., pickles, logs).
@@ -33,6 +28,9 @@ def run_speaker_assignment(work_dir, audio_dir, temp_dir, crop_dir, graphs_dir, 
 
     :param graphs_dir: str
         Output directory where probability plots (.png) will be saved.
+
+    :param avi_dir: str
+        Output directory containing videos.
 
     :param weights_path: str
         Path to the SyncNet model weights file (.pth).
@@ -72,7 +70,8 @@ def run_speaker_assignment(work_dir, audio_dir, temp_dir, crop_dir, graphs_dir, 
     plot_probs(os.path.join(work_dir, 'probabilities.pkl'), graphs_dir)
 
     # Assign Speakers
-    assign(os.path.join(work_dir, 'probabilities.pkl'), os.path.join(work_dir, 'assignments.pkl'))
+    assign(os.path.join(work_dir, 'probabilities.pkl'), os.path.join(work_dir, 'assignments.pkl'), graphs_dir)
 
-
-
+    # Annotate Video
+    annotate_video(os.path.join(avi_dir, 'video.avi'), os.path.join(work_dir, 'tracks.pkl'),
+                   os.path.join(avi_dir, 'annotated.mp4'), os.path.join(work_dir, 'assignments.pkl'))
