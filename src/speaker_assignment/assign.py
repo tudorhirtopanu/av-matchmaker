@@ -1,6 +1,7 @@
 import os
 import pickle
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def load_probabilities(path):
@@ -165,8 +166,9 @@ def print_matrix(title, matrix, all_tids):
     :return: None
         Prints formatted table directly to stdout.
     """
-    print(f"\n=== {title} ===")
+    print(f"\n {title}")
     header = "Audio File".ljust(20) + "".join(f"{tid:^10}" for tid in all_tids)
+    print("-" * len(header))
     print(header)
     print("-" * len(header))
     for audio_file, row in matrix.items():
@@ -175,8 +177,67 @@ def print_matrix(title, matrix, all_tids):
         print(line)
     print()
 
+def print_best_track_per_audio(title, matrix):
+    """
+    For each audio file, print the best-matching track id and its probability.
+    :param title: str
+    :param matrix: dict[str, dict[int, float]]  # audio -> {track_id -> prob}
+    """
+    print(f"\n {title}")
+    print("-" * 48)
+    for audio_file, row in matrix.items():
+        tid = max(row, key=row.get)
+        prob = row[tid]
+        print(f"{os.path.basename(audio_file)} \u2192 track {tid}  ({prob:.3f})")
+    print()
 
-def assign(probabilities_path, output_path, gap_exponent=45, sigmoid_temp=2.0, eps = 1e-8):
+def save_assignment_table_image(matrix, out_path, title="Best Track per Audio (raw)"):
+    """
+    Save a simple table image listing each audio file, its best track, and the score.
+
+    :param matrix: dict[str, dict[int, float]]
+        audio_file -> {track_id -> probability}
+    :param out_path: str
+        Where to save the PNG (e.g., 'out/best_raw.png').
+    :param title: str
+        Title to show above the table.
+    """
+    # Build rows: [audio basename, 'track X', '0.000']
+    rows = []
+    for audio_file, row in sorted(matrix.items()):
+        best_tid = max(row, key=row.get)
+        best_score = row[best_tid]
+        rows.append([os.path.basename(audio_file), f"track {best_tid}", f"{best_score:.3f}"])
+
+    # Size figure based on number of rows
+    n = len(rows)
+    fig_w = 7.5
+    row_h = 0.42
+    fig_h = max(1.6, row_h * (n + 2))
+
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+    ax.axis("off")
+    ax.set_title(title, pad=10)
+
+    table = ax.table(
+        cellText=rows,
+        colLabels=["Audio file", "Best track", "Score"],
+        loc="center",
+        cellLoc="left",
+        colLoc="left",
+    )
+    # Make it readable
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.scale(1.0, 1.3)
+
+    fig.tight_layout()
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    fig.savefig(out_path, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+
+
+def assign(probabilities_path, output_path, table_output, gap_exponent=45, sigmoid_temp=2.0, eps=1e-8):
     """
     Load per-window speaker probabilities, aggregate them into matrices,
     display those matrices, compute a per-audio-file speaker assignment,
@@ -203,8 +264,24 @@ def assign(probabilities_path, output_path, gap_exponent=45, sigmoid_temp=2.0, e
 
     # print for the user
     print_matrix("Raw Aggregated Probabilities", raw_mat, all_tids)
-    print_matrix("Uniform-Weighted Probabilities", uni_mat, all_tids)
-    print_matrix("EMA-Weighted Probabilities", ema_mat, all_tids)
+    #print_matrix("Uniform-Weighted Probabilities", uni_mat, all_tids)
+    #print_matrix("EMA-Weighted Probabilities", ema_mat, all_tids)
+
+    # Print WAV -> best track (and score)
+    print_best_track_per_audio("Best Track per Audio (raw)", raw_mat)
+    # If you want the other modes too, uncomment:
+    # print_best_track_per_audio("Best Track per Audio (uniform)", uni_mat)
+    # print_best_track_per_audio("Best Track per Audio (ema)", ema_mat)
+
+
+    # save table images
+    save_assignment_table_image(raw_mat, os.path.join(os.path.dirname(table_output), "best_raw.png"),
+                                title="Best Track per Audio (raw)")
+    # Optional:
+    # save_assignment_table_image(uni_mat, os.path.join(os.path.dirname(output_path), "best_uniform.png"),
+    #                             title="Best Track per Audio (uniform)")
+    # save_assignment_table_image(ema_mat, os.path.join(os.path.dirname(output_path), "best_ema.png"),
+    #                             title="Best Track per Audio (ema)")
 
     # build assignments
     assignment = {
