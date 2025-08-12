@@ -78,7 +78,6 @@ def _load_tracks_as_frame_map(tracks_pkl_path):
     for tid, t in enumerate(tracks):
         frames = t["track"]["frame"]
         bboxes = t["track"]["bbox"]
-
         # frames/bboxes may be numpy arrays
         for fi, box in zip(list(frames), list(bboxes)):
             x1, y1, x2, y2 = map(int, map(round, box))

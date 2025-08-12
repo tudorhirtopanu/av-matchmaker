@@ -51,7 +51,7 @@ def plot_probs(pkl_input_path, output_dir):
             start_s = seg["start_ms"] / 1000.0
             end_s = seg.get("end_ms", None)
             time_s = seg["time_s"]
-            probs = seg["smoothed_ema"]
+            probs = seg["smoothed_uniform"]
 
             # Mask to only include times within start-end of segment
             mask = (time_s >= start_s) & (time_s <= end_s)
