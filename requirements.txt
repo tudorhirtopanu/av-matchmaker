@@ -7,3 +7,4 @@ opencv-contrib-python
 python_speech_features
 webrtcvad
 opencv-python
+matplotlib
