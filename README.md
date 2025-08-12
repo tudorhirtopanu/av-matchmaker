@@ -8,14 +8,105 @@ This repository automates that manual labeling step by matching face tracks to t
 
 *(Independent research code)*
 
+<img width="500" alt="Screenshot 2025-08-12 at 19 05 59" src="https://github.com/user-attachments/assets/0d59fa54-b173-413b-a2f1-07ccf77557f3" />
+
 ## Table of Contents
 - [Features](#features)
-- [How it Works (Overview)](#how-it-works-overview)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Pipeline](#pipeline)
 
 ## Features 
 - Matches multiple face tracks to separated audio tracks without manual labeling.
 - Uses SyncNet’s visual–audio embedding space for speaker identification.
 - Handles overlapping speakers and multiple faces in real-world videos.
+
+## Installation
+
+1. Clone this repository
+```
+git clone https://github.com/tudorhirtopanu/av-matchmaker.git
+cd av-matchmaker
+```
+
+2. Create a virtual environment (recommended) and activate it
+```
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows use `.venv\Scripts\activate`
+```
+
+3. Install dependencies
+```
+pip install -r requirements.txt
+```
+
+4. Set up necessary directories and download weights
+```
+python3 setup.py
+```
+
+## Usage
+
+The easiest way to run AV Matchmaker is via the `run_pipeline` script.  
+This script handles the full process: face detection, tracking, audio processing, embedding extraction, matching, and visualization.  
+
+```bash
+./run_pipeline \
+  --video_file /path/to/video.mp4 \
+  --reference sessionName \
+  --audio_dir /path/to/separated_audio
+```
+
+**Arguments (required):**
+- `--video_file` — Path to the video file.
+- `--reference` — Session identifier (used to name output subfolders).
+- `--audio_dir` — Path to the folder containing separated `.wav` audio tracks (one per speaker).
+
+**Optional arguments (defaults shown):**
+- `--output_dir` — Root output directory (default: `<repo_root>/output`).
+- `--facedet_scale` — Scale factor for face detection (default: `0.25`).
+- `--crop_scale` — Padding scale around detected faces (default: `0.40`).
+- `--min_track` — Minimum face track length in frames (default: `100`).
+- `--num_failed_det` — Allowed missed detections in tracking (default: `25`).
+- `--min_face_size` — Minimum average face size in pixels (default: `100`).
+- `--frame_rate` — Frame rate of the video (default: `25.0`).
+- `--weights_path` — Path to SyncNet model weights (default: provided model in repo).
+
+### Expected outputs
+
+After running the pipeline, the main outputs are:
+
+- **Annotated video** (`/graphs/<reference>/annotated.mp4`)  
+  Shows bounding boxes around detected faces, labeled with the face track ID and the matched audio file.
+
+- **Probability matrix**  
+  A matrix where **rows** = audio tracks and **columns** = face tracks, with each cell showing the match probability between that audio and face.
+
+- **Assignments file** (`/pywork/<reference>/assignments.pkl`)  
+  A pickle file containing detailed assignment scores for each audio–face pair under different weighting schemes (`raw`, `uniform`, `ema`).  
+  Example:
+  ```json
+  {
+      "raw": {
+          "floyd.wav": {"0": 0.8368, "1": 0.1631},
+          "host.wav": {"0": 0.2022, "1": 0.7977}
+      },
+      "uniform": {
+          "floyd.wav": {"0": 0.7875, "1": 0.2124},
+          "host.wav": {"0": 0.2282, "1": 0.7717}
+      },
+      "ema": {
+          "floyd.wav": {"0": 0.3698, "1": 0.6302},
+          "host.wav": {"0": 0.2840, "1": 0.7159}
+      },
+      "all_tids": [0, 1],
+      "assignment": {
+          "raw": {"floyd.wav": 0, "host.wav": 1},
+          "uniform": {"floyd.wav": 0, "host.wav": 1},
+          "ema": {"floyd.wav": 0, "host.wav": 1}
+      }
+  }
+  ```
 
 ## Pipeline
 <img width="633" height="463" alt="image" src="https://github.com/user-attachments/assets/eaf66d04-8398-4625-81c4-68c02127d459" />
