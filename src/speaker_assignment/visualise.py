@@ -87,40 +87,36 @@ def _load_tracks_as_frame_map(tracks_pkl_path):
 
 def _load_inv_assignment_map(assignments_path, mode):
     """
-    Build track_id -> (audio_file, probability) from assignments.
+    Load assignments.pkl and build a map from track_id -> (audio_file, probability)
+    using only the winning assignments from the given mode.
 
-    :param assignments_path: Optional[str]
-        Path to assignments.pkl. If None, returns {}.
-    :param mode: Optional[str]
-        One of {'raw','uniform','ema'}. If None, returns {}.
-
-    :return: Dict[int, Tuple[str, float]]
-        Mapping for winning assignments.
-    :raises ValueError:
-        If mode is not present in assignments.
+    :param assignments_path: str
+        Path to assignments.pkl.
+    :param mode: str
+        Which assignment variant to use: 'raw', 'uniform', or 'ema'.
+    :return: dict[int, (str, float)]
+        Mapping: track_id -> (winning audio filename, probability score)
     """
-    if not assignments_path or not mode:
+    if not assignments_path:
         return {}
     with open(assignments_path, "rb") as f:
-        assignments = pickle.load(f)
+        A = pickle.load(f)
 
-    if "assignment" not in assignments or mode not in assignments["assignment"]:
-        raise ValueError(f"Mode must be one of {list(assignments.get('assignment', {}).keys())}")
+    if "assignment" not in A or mode not in A["assignment"]:
+        raise ValueError(f"Mode '{mode}' not found in assignments.")
 
+    audio_to_track = A["assignment"][mode]  # WAV -> tid
     inv_map = {}
-    mode_assign = assignments["assignment"][mode]  # audio -> tid
-    mode_probs = assignments[mode]                # audio -> {tid -> prob}
-    for audio_file, tid in mode_assign.items():
-        # ids might be str or int in the pickle
-        probs_for_audio = mode_probs[audio_file]
-        prob = probs_for_audio.get(tid)
-        if prob is None:
-            prob = probs_for_audio.get(str(tid), 0.0)
-        inv_map[int(tid)] = (audio_file, float(prob))
+    probs = A[mode]  # WAV -> {tid: prob}
+
+    for wav, tid in audio_to_track.items():
+        p = probs[wav].get(tid, probs[wav].get(str(tid), 0.0))
+        inv_map[int(tid)] = (wav, float(p))
+
     return inv_map
 
 
-def annotate_video(video_path, tracks_path, output_video_path, assignments_path=None, mode=None, fixed_box_color=None,
+def annotate_video(video_path, tracks_path, output_video_path, assignments_path=None, mode='raw', fixed_box_color=None,
                    font_scale=0.8, thickness=2):
     """
     Draw track boxes and audio labels onto a video and save it.
@@ -134,7 +130,7 @@ def annotate_video(video_path, tracks_path, output_video_path, assignments_path=
     :param assignments_path: Optional[str]
         Path to assignments.pkl (optional).
     :param mode: Optional[str]
-        Assignment variant: 'raw'|'uniform'|'ema' (optional).
+        Assignment variant: 'raw'|'uniform'|'ema'.
     :param fixed_box_color: Optional[Tuple[int, int, int]]
         Single BGR color; if None, use per-track palette.
     :param font_scale: float
