@@ -96,7 +96,7 @@ After running the pipeline, the main outputs are:
           "host.wav": {"0": 0.2282, "1": 0.7717}
       },
       "ema": {
-          "floyd.wav": {"0": 0.3698, "1": 0.6302},
+          "floyd.wav": {"0": 0.8154, "1": 0.1846},
           "host.wav": {"0": 0.2840, "1": 0.7159}
       },
       "all_tids": [0, 1],
