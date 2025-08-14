@@ -15,6 +15,7 @@ This repository automates that manual labeling step by matching face tracks to t
 - [Installation](#installation)
 - [Usage](#usage)
 - [Pipeline](#pipeline)
+- [Acknowledgements](#acknowledgements)
 
 ## Features 
 - Matches multiple face tracks to separated audio tracks without manual labeling.
@@ -120,3 +121,13 @@ After running the pipeline, the main outputs are:
 5. **Matching:** Compare embeddings via cosine similarity, aggregate over time using weighted log probabilities.  
 6. **Assignment:** Assign each audio track to the most likely face track based on aggregated probabilities.  
 7. **Visualization:** Annotate video with face boxes and audio labels, and save a table of matches with confidence scores.
+
+## Acknowledgements
+This project uses the [PyTorch implementation of SyncNet](https://github.com/joonson/syncnet_python) for extracting cross-modal audio–visual embeddings. 
+
+We also acknowledge the original SyncNet paper:
+
+Chung, J.S. and Zisserman, A. (2016).  
+*Out of time: automated lip sync in the wild*. Workshop on Multi-view Lip-reading, ACCV.  
+[Paper link](https://www.robots.ox.ac.uk/~vgg/publications/2016/Chung16a/)
+
