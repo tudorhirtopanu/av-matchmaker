@@ -2,7 +2,7 @@ import os
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
-
+from scipy.optimize import linear_sum_assignment
 
 def load_probabilities(path):
     """
@@ -237,7 +237,7 @@ def save_assignment_table_image(matrix, out_path, title="Best Track per Audio (r
     plt.close(fig)
 
 
-def assign(probabilities_path, output_path, table_output, gap_exponent=45, sigmoid_temp=2.0, eps=1e-8):
+def assign_old(probabilities_path, output_path, table_output, gap_exponent=45, sigmoid_temp=2.0, eps=1e-8):
     """
     Load per-window speaker probabilities, aggregate them into matrices,
     display those matrices, compute a per-audio-file speaker assignment,
@@ -300,6 +300,102 @@ def assign(probabilities_path, output_path, table_output, gap_exponent=45, sigmo
     }
 
     # write to pickle
+    with open(output_path, "wb") as f:
+        pickle.dump(out, f)
+
+
+
+# ==== Hungarian Assignment ====
+
+def hungarian_from_matrix(matrix, all_tids, invalid_cost=1e6):
+    """
+    matrix: dict[audio_file -> dict[track_id -> prob]]
+    all_tids: list of all track ids (columns order)
+    returns: dict[audio_file -> assigned track_id] using 1–1 matching
+    """
+    audio_files = sorted(matrix.keys())
+    A, T = len(audio_files), len(all_tids)
+
+    # Build probability matrix P[audio, track]
+    P = np.array([[matrix[a].get(t, 0.0) for t in all_tids] for a in audio_files], dtype=np.float64)
+
+    # Convert to costs: maximize P  <=>  minimize -log(P)
+    with np.errstate(divide="ignore"):
+        cost = -np.log(np.clip(P, 1e-12, 1.0))
+
+    # Pairs that are structurally impossible in your data are exactly 0.0
+    cost[P == 0.0] = invalid_cost
+
+    # If more audios than tracks, pad with "dummy tracks" to allow every audio to be assigned
+    dummy_labels = []
+    if A > T:
+        pad = A - T
+        cost = np.hstack([cost, np.full((A, pad), 10.0)])  # moderately bad but finite cost
+        dummy_labels = [f"__dummy_{i}" for i in range(pad)]
+        all_tids = all_tids + dummy_labels
+
+    # Solve the assignment
+    rows, cols = linear_sum_assignment(cost)
+
+    # Build mapping, dropping dummy matches
+    assignment = {}
+    for r, c in zip(rows, cols):
+        tid = all_tids[c]
+        if tid in dummy_labels:   # means "no suitable face" for this audio
+            continue
+        assignment[audio_files[r]] = tid
+    return assignment
+
+
+def assign(probabilities_path, output_path, table_output, gap_exponent=45, sigmoid_temp=2.0, eps=1e-8):
+    # Load and compute
+    data = load_probabilities(probabilities_path)
+    raw_mat, uni_mat, ema_mat, all_tids = compute_face_audio_matrix(data, gap_exponent, sigmoid_temp, eps)
+
+    # print for the user
+    print_matrix("Raw Aggregated Probabilities", raw_mat, all_tids)
+
+    # --- Hungarian (global 1–1) assignments ---
+    hung_raw = hungarian_from_matrix(raw_mat, all_tids)
+    hung_uni = hungarian_from_matrix(uni_mat, all_tids)
+    hung_ema = hungarian_from_matrix(ema_mat, all_tids)
+
+    def print_mapping(title, matrix, mapping):
+        print(f"\n {title}")
+        print("-" * 48)
+        for audio_file in sorted(matrix.keys()):
+            base = os.path.basename(audio_file)
+            tid = mapping.get(audio_file)
+            if tid is None:
+                print(f"{base} \u2192 (no assignment)")
+            else:
+                score = matrix[audio_file].get(tid, 0.0)
+                print(f"{base} \u2192 track {tid}  ({score:.3f})")
+        print()
+
+    print_mapping("Best Track per Audio (raw, Hungarian 1–1)", raw_mat, hung_raw)
+
+    # save table images
+    save_assignment_table_image(
+        raw_mat,
+        os.path.join(os.path.dirname(table_output), "best_raw.png"),
+        title="Best Track per Audio (raw, Hungarian 1–1)"
+    )
+
+    assignment = {
+        "raw":     hung_raw,
+        "uniform": hung_uni,
+        "ema":     hung_ema,
+    }
+
+    out = {
+        "raw":        raw_mat,
+        "uniform":    uni_mat,
+        "ema":        ema_mat,
+        "all_tids":   all_tids,
+        "assignment": assignment,
+    }
+
     with open(output_path, "wb") as f:
         pickle.dump(out, f)
 
